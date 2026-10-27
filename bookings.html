@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý đơn hàng | Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%A8%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="admin-overlay" id="adminOverlay" onclick="closeAdminSidebar()"></div>
+  <div class="admin-wrapper">
+    <aside class="admin-sidebar">
+      <div class="brand"><h4><i class="bi bi-building"></i> LUXURY STAY</h4><small style="color:rgba(255,255,255,0.5);">Admin Panel</small></div>
+      <nav style="margin-top:12px;">
+        <a href="dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="bookings.html" class="active"><i class="bi bi-calendar-check"></i> Quản lý đơn hàng</a>
+        <a href="rooms.html"><i class="bi bi-door-open"></i> Quản lý phòng</a>
+        <a href="users.html"><i class="bi bi-people"></i> Quản lý tài khoản</a>
+        <a href="categories.html"><i class="bi bi-tags"></i> Quản lý danh mục</a>
+        <hr style="border-color:rgba(255,255,255,0.1);margin:12px 16px;">
+        <a href="../index.html"><i class="bi bi-box-arrow-left"></i> Về trang chủ</a>
+        <a href="#" onclick="logout();return false;"><i class="bi bi-box-arrow-right"></i> Đăng xuất</a>
+      </nav>
+    </aside>
+    <div class="admin-content">
+      <div class="admin-topbar">
+        <button class="admin-toggle" onclick="toggleAdminSidebar()" aria-label="Menu"><i class="bi bi-list"></i></button><h5 style="margin:0;font-weight:700;">Quản lý đơn hàng</h5></div>
+      <div class="admin-main">
+        <div class="table-card">
+          <div style="padding:16px 20px;border-bottom:1px solid #eee;"><h5 style="margin:0;font-weight:700;"><i class="bi bi-list-ul"></i> Danh sách đơn đặt phòng</h5></div>
+          <table>
+            <thead><tr><th>Mã đơn</th><th>Khách</th><th>SĐT</th><th>Phòng</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody id="body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="../js/main.js"></script>
+  <script>
+    if (!requireAuth(['staff','admin'])) throw new Error('Không có quyền');
+    const PAY = { cash: 'Tiền mặt', bank: 'Chuyển khoản', momo: 'MoMo', vnpay: 'VNPay', paypal: 'PayPal' };
+    const SEL = 'padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:13px;';
+    function render() {
+      const orders = getOrders();
+      document.getElementById('body').innerHTML = orders.map(o => `
+        <tr>
+          <td><strong>${esc(o.code)}</strong></td>
+          <td>${esc(o.name)}</td>
+          <td>${esc(o.phone || '—')}</td>
+          <td style="font-size:0.85rem;">${o.items.map(i => esc(i.name)).join(', ')}</td>
+          <td>${formatPrice(o.total)}</td>
+          <td>
+            <select data-code="${esc(o.code)}" onchange="updPay(this.dataset.code,this.value)" style="${SEL}">
+              <option value="unpaid" ${o.paymentStatus === 'unpaid' ? 'selected' : ''}>Chưa TT</option>
+              <option value="paid" ${o.paymentStatus === 'paid' ? 'selected' : ''}>Đã TT</option>
+            </select>
+          </td>
+          <td>
+            <select data-code="${esc(o.code)}" onchange="updStatus(this.dataset.code,this.value)" style="${SEL}">
+              <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Chờ XN</option>
+              <option value="confirmed" ${o.status === 'confirmed' ? 'selected' : ''}>Đã XN</option>
+              <option value="checkedin" ${o.status === 'checkedin' ? 'selected' : ''}>Check-in</option>
+              <option value="checkedout" ${o.status === 'checkedout' ? 'selected' : ''}>Check-out</option>
+              <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Hủy</option>
+            </select>
+          </td>
+          <td><button class="btn btn-outline btn-sm" data-code="${esc(o.code)}" onclick="showDetail(this.dataset.code)" aria-label="Chi tiết"><i class="bi bi-eye"></i></button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="8" style="text-align:center;color:#999;padding:30px;">Chưa có đơn hàng</td></tr>';
+    }
+    function showDetail(code) {
+      const o = getOrders().find(x => x.code === code);
+      if (!o) return;
+      openModal(`<h4>Chi tiết đơn ${esc(o.code)}</h4>
+        <p><strong>Khách:</strong> ${esc(o.name)}</p>
+        <p><strong>SĐT:</strong> ${esc(o.phone || '—')}</p>
+        <p><strong>Ngày đặt:</strong> ${esc(o.date)}</p>
+        <p><strong>Thanh toán:</strong> ${esc(PAY[o.payment] || o.payment)}</p>
+        <p><strong>Phòng:</strong></p>
+        <ul style="margin:4px 0 8px 18px;">${o.items.map(i => `<li>${esc(i.name)}: ${esc(i.checkin)} → ${esc(i.checkout)} (${esc(i.nights)} đêm)</li>`).join('')}</ul>
+        <p><strong>Tổng:</strong> ${formatPrice(o.total)}</p>
+        <p><strong>Ghi chú:</strong> ${esc(o.note || '—')}</p>
+        <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Đóng</button></div>`);
+    }
+    function updStatus(code, val) {
+      saveOrders(getOrders().map(o => o.code === code ? { ...o, status: val } : o));
+      toast('Đã cập nhật trạng thái đơn ' + code);
+    }
+    function updPay(code, val) {
+      saveOrders(getOrders().map(o => o.code === code ? { ...o, paymentStatus: val } : o));
+      toast('Đã cập nhật thanh toán đơn ' + code);
+    }
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</body>
+</html>

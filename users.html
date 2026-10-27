@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý tài khoản | Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%A8%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="admin-overlay" id="adminOverlay" onclick="closeAdminSidebar()"></div>
+  <div class="admin-wrapper">
+    <aside class="admin-sidebar">
+      <div class="brand"><h4><i class="bi bi-building"></i> LUXURY STAY</h4><small style="color:rgba(255,255,255,0.5);">Admin Panel</small></div>
+      <nav style="margin-top:12px;">
+        <a href="dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="bookings.html"><i class="bi bi-calendar-check"></i> Quản lý đơn hàng</a>
+        <a href="rooms.html"><i class="bi bi-door-open"></i> Quản lý phòng</a>
+        <a href="users.html" class="active"><i class="bi bi-people"></i> Quản lý tài khoản</a>
+        <a href="categories.html"><i class="bi bi-tags"></i> Quản lý danh mục</a>
+        <hr style="border-color:rgba(255,255,255,0.1);margin:12px 16px;">
+        <a href="../index.html"><i class="bi bi-box-arrow-left"></i> Về trang chủ</a>
+        <a href="#" onclick="logout();return false;"><i class="bi bi-box-arrow-right"></i> Đăng xuất</a>
+      </nav>
+    </aside>
+    <div class="admin-content">
+      <div class="admin-topbar">
+        <button class="admin-toggle" onclick="toggleAdminSidebar()" aria-label="Menu"><i class="bi bi-list"></i></button><h5 style="margin:0;font-weight:700;">Quản lý tài khoản (Người dùng / Nhân viên)</h5>
+        <button class="btn btn-primary btn-sm" onclick="addUser()"><i class="bi bi-plus"></i> Thêm tài khoản</button></div>
+      <div class="admin-main">
+        <div class="table-card">
+          <table>
+            <thead><tr><th>ID</th><th>Họ tên</th><th>Email</th><th>SĐT</th><th>Vai trò</th><th>Thao tác</th></tr></thead>
+            <tbody id="body"></tbody>
+          </table>
+        </div>
+        <p style="margin-top:12px;color:#888;font-size:0.9rem;">* Dữ liệu demo lưu trên trình duyệt (localStorage). Khi triển khai thật sẽ kết nối PHP/MySQL.</p>
+      </div>
+    </div>
+  </div>
+  <script src="../js/main.js"></script>
+  <script>
+    if (!requireAuth(['admin'])) throw new Error('Không có quyền');
+    const ROLE = { admin: ['Admin', 'badge-confirmed'], staff: ['Nhân viên', 'badge-checkedin'], customer: ['Khách hàng', 'badge-pending'] };
+    function userFields(isNew) {
+      const f = [
+        { name: 'name', label: 'Họ tên', required: true },
+        { name: 'email', label: 'Email', type: 'email', required: true },
+        { name: 'phone', label: 'Số điện thoại', type: 'tel' },
+        { name: 'role', label: 'Vai trò', type: 'select', options: [
+          { value: 'customer', label: 'Khách hàng' }, { value: 'staff', label: 'Nhân viên' }, { value: 'admin', label: 'Admin' }] }
+      ];
+      f.push({ name: 'password', label: isNew ? 'Mật khẩu (tối thiểu 6 ký tự)' : 'Mật khẩu mới (bỏ trống = giữ nguyên)', type: 'password', required: isNew });
+      return f;
+    }
+    function check(d, users, selfId, isNew) {
+      if (!d.name) return 'Vui lòng nhập họ tên!';
+      if (!isValidEmail(d.email)) return 'Email không hợp lệ!';
+      if (d.phone && !isValidPhone(d.phone)) return 'Số điện thoại không hợp lệ!';
+      if (users.some(u => u.id !== selfId && u.email.toLowerCase() === d.email.toLowerCase())) return 'Email đã tồn tại!';
+      if ((isNew || d.password) && d.password.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự!';
+      return null;
+    }
+    function addUser() {
+      openForm('Thêm tài khoản', userFields(true), { role: 'staff' }, d => {
+        const users = getUsers();
+        const err = check(d, users, null, true);
+        if (err) return err;
+        users.push({ id: nextId(users), name: d.name, email: d.email, phone: d.phone, password: d.password, role: d.role });
+        saveUsers(users); render(); toast('Đã thêm tài khoản');
+      });
+    }
+    function adminCount(users) { return users.filter(u => u.role === 'admin').length; }
+    function editUser(id) {
+      const users = getUsers();
+      const u = users.find(x => x.id === id);
+      if (!u) return;
+      openForm('Sửa tài khoản #' + id, userFields(false), { ...u, password: '' }, d => {
+        const err = check(d, users, id, false);
+        if (err) return err;
+        if (u.role === 'admin' && d.role !== 'admin' && adminCount(users) <= 1) return 'Phải còn ít nhất một Admin!';
+        saveUsers(users.map(x => x.id === id ? { ...x, name: d.name, email: d.email, phone: d.phone, role: d.role, password: d.password || x.password } : x));
+        const me = getUser();
+        if (me && me.id === id) setUser({ ...me, name: d.name, email: d.email, role: d.role });
+        render(); toast('Đã cập nhật tài khoản');
+      });
+    }
+    function delUser(id) {
+      const users = getUsers();
+      const u = users.find(x => x.id === id);
+      if (!u) return;
+      if (getUser().id === id) { alert('Bạn không thể xóa chính tài khoản đang đăng nhập!'); return; }
+      if (u.role === 'admin' && adminCount(users) <= 1) { alert('Phải còn ít nhất một Admin!'); return; }
+      if (getOrders().some(o => o.userId === id && ACTIVE_STATUS.includes(o.status))) { alert('Tài khoản này còn đơn đặt phòng chưa hoàn tất, không thể xóa!'); return; }
+      if (!confirm('Xóa tài khoản ' + u.email + '?')) return;
+      saveUsers(users.filter(x => x.id !== id));
+      render(); toast('Đã xóa tài khoản');
+    }
+    function render() {
+      document.getElementById('body').innerHTML = getUsers().map(u => {
+        const [label, cls] = ROLE[u.role] || ROLE.customer;
+        return `<tr>
+          <td>${u.id}</td><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone || '—')}</td>
+          <td><span class="badge ${cls}">${label}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="editUser(${u.id})" aria-label="Sửa"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="delUser(${u.id})" aria-label="Xóa"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</body>
+</html>
