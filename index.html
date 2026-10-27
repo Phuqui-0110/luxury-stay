@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luxury Stay - Đặt phòng khách sạn trực tuyến</title>
+  <meta name="description" content="Luxury Stay - Hệ thống quản lý và đặt phòng khách sạn: tìm phòng theo ngày, đặt phòng online, thanh toán tiền mặt, ngân hàng, MoMo, VNPay.">
+  <meta name="keywords" content="Luxury Stay, hệ thống quản lý khách sạn, đặt phòng khách sạn, hotel management system">
+  <meta name="robots" content="index, follow">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Luxury Stay - Đặt phòng khách sạn trực tuyến">
+  <meta property="og:description" content="Khám phá phòng nghỉ sang trọng, đặt phòng online nhanh chóng tại Luxury Stay.">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%A8%3C/text%3E%3C/svg%3E">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"Hotel","name":"Luxury Stay","description":"Hệ thống quản lý và đặt phòng khách sạn trực tuyến","telephone":"1900 1234","email":"info@luxurystay.vn","priceRange":"850.000đ - 5.000.000đ"}
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand"><i class="bi bi-building"></i> LUXURY STAY</a>
+      <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu"><i class="bi bi-list"></i></button>
+      <ul class="navbar-nav">
+        <li><a href="index.html" class="active">Trang chủ</a></li>
+        <li><a href="rooms.html">Phòng</a></li>
+        <li><a href="cart.html">Giỏ đặt <span class="cart-badge">0</span></a></li>
+        <li><a href="orders.html">Đơn của tôi</a></li>
+        <li id="navAdmin" style="display:none;"><a href="admin/dashboard.html">Admin</a></li>
+        <li id="navLogin"><a href="login.html" class="btn-gold"><i class="bi bi-person"></i> Đăng nhập</a></li>
+        <li id="navUser" style="display:none;"></li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div style="width:100%;padding:0 20px;">
+      <h1>Trải nghiệm kỳ nghỉ đẳng cấp</h1>
+      <p>Khám phá phòng nghỉ sang trọng tại Luxury Stay</p>
+      <div class="search-box">
+        <div class="row">
+          <div class="col">
+            <label>Ngày nhận phòng</label>
+            <input type="date" id="checkin">
+          </div>
+          <div class="col">
+            <label>Ngày trả phòng</label>
+            <input type="date" id="checkout">
+          </div>
+          <div class="col">
+            <label>Số khách</label>
+            <select id="guests">
+              <option value="1">1 người</option>
+              <option value="2" selected>2 người</option>
+              <option value="3">3 người</option>
+              <option value="4">4 người</option>
+              <option value="5">5+ người</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>Loại phòng</label>
+            <select id="type">
+              <option value="">Tất cả</option>
+              <option>Standard</option>
+              <option>Deluxe</option>
+              <option>Suite</option>
+              <option>Presidential</option>
+              <option>Family</option>
+              <option>Ocean View</option>
+            </select>
+          </div>
+          <div class="col" style="flex:0.6;">
+            <label>&nbsp;</label>
+            <button class="btn-search" onclick="doSearch()"><i class="bi bi-search"></i> Tìm phòng</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-title"><h2>Phòng nổi bật</h2></div>
+    <div class="room-grid" id="roomGrid"></div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div><h5>LUXURY STAY</h5><p>Hệ thống quản lý khách sạn hiện đại.</p></div>
+      <div><h5>Liên kết</h5><p><a href="rooms.html">Phòng</a></p><p><a href="orders.html">Đơn đặt</a></p><p><a href="login.html">Đăng nhập</a></p></div>
+      <div><h5>Thanh toán</h5><p>Tiền mặt · Ngân hàng · MoMo · VNPay · PayPal</p></div>
+      <div><h5>Liên hệ</h5><p>1900 1234 · info@luxurystay.vn</p></div>
+    </div>
+    <div class="footer-bottom">&copy; 2026 Luxury Stay Hotel Management</div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      fillTypeSelect('type', 'Tất cả');
+      renderRooms(getRooms(), 'roomGrid');
+      const cin = document.getElementById('checkin');
+      const cout = document.getElementById('checkout');
+      cin.min = todayStr();
+      cout.min = addDays(todayStr(), 1);
+      cin.addEventListener('change', () => {
+        cout.min = addDays(cin.value || todayStr(), 1);
+        if (cout.value && cout.value <= cin.value) cout.value = '';
+      });
+    });
+    function doSearch() {
+      const ci = document.getElementById('checkin').value;
+      const co = document.getElementById('checkout').value;
+      const t = document.getElementById('type').value;
+      const g = parseInt(document.getElementById('guests').value, 10);
+      if ((ci || co) && !datesValid(ci, co)) { alert('Vui lòng chọn đủ ngày nhận và ngày trả hợp lệ!'); return; }
+      if (ci && ci < todayStr()) { alert('Ngày nhận phòng không được ở quá khứ!'); return; }
+      let list = getRooms().filter(r => r.capacity >= g);
+      if (t) list = list.filter(r => r.type === t);
+      if (ci && co) list = list.filter(r => isRoomAvailable(r, ci, co));
+      renderRooms(list, 'roomGrid', { checkin: ci, checkout: co });
+      document.getElementById('roomGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  </script>
+</body>
+</html>
