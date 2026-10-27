@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đặt phòng & Thanh toán | Luxury Stay</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%A8%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand"><i class="bi bi-building"></i> LUXURY STAY</a>
+      <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu"><i class="bi bi-list"></i></button>
+      <ul class="navbar-nav">
+        <li><a href="index.html">Trang chủ</a></li>
+        <li><a href="rooms.html">Phòng</a></li>
+        <li><a href="cart.html">Giỏ đặt <span class="cart-badge">0</span></a></li>
+        <li><a href="orders.html">Đơn của tôi</a></li>
+        <li id="navLogin"><a href="login.html" class="btn-gold"><i class="bi bi-person"></i> Đăng nhập</a></li>
+        <li id="navUser" style="display:none;"></li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="section">
+    <div class="section-title"><h2>Đặt phòng & Thanh toán</h2></div>
+    <div class="checkout-grid">
+      <div style="background:#fff;border-radius:12px;padding:28px;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
+        <h4 style="margin-bottom:16px;"><i class="bi bi-person"></i> Thông tin khách</h4>
+        <div class="form-group"><label>Họ tên</label><input type="text" id="guestName" required></div>
+        <div class="form-group"><label>Số điện thoại</label><input type="tel" id="guestPhone" required></div>
+        <div class="form-group"><label>Ghi chú</label><textarea id="note" rows="2"></textarea></div>
+
+        <h4 style="margin:20px 0 12px;"><i class="bi bi-credit-card"></i> Phương thức thanh toán</h4>
+        <div class="pay-options">
+          <div class="pay-opt selected" onclick="selPay(this,'cash')"><i class="bi bi-cash-coin"></i> Tiền mặt (tại KS)</div>
+          <div class="pay-opt" onclick="selPay(this,'bank')"><i class="bi bi-bank"></i> Chuyển khoản NH</div>
+          <div class="pay-opt" onclick="selPay(this,'momo')"><i class="bi bi-wallet2"></i> Ví MoMo</div>
+          <div class="pay-opt" onclick="selPay(this,'vnpay')"><i class="bi bi-credit-card-2-front"></i> VNPay / PayPal</div>
+        </div>
+        <button class="btn btn-primary btn-lg" style="width:100%;margin-top:16px;" onclick="placeOrder()">
+          <i class="bi bi-check-circle"></i> Xác nhận đặt phòng
+        </button>
+      </div>
+      <div style="background:#fff;border-radius:12px;padding:28px;box-shadow:0 4px 20px rgba(0,0,0,0.06);height:fit-content;">
+        <h4 style="margin-bottom:14px;">Đơn đặt của bạn</h4>
+        <div id="orderItems"></div>
+        <hr style="margin:14px 0;border:none;border-top:1px solid #eee;">
+        <div style="display:flex;justify-content:space-between;font-size:1.3rem;font-weight:700;color:#0d6efd;">
+          <span>Tổng</span><span id="sumTotal">0đ</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer"><div class="footer-bottom">&copy; 2026 Luxury Stay</div></footer>
+  <script src="js/main.js"></script>
+  <script>
+    if (!requireAuth(['customer','staff','admin'])) throw new Error('Chưa đăng nhập');
+    let payMethod = 'cash';
+    let placing = false;
+    function selPay(el, m) {
+      document.querySelectorAll('.pay-opt').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      payMethod = m;
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const cart = getCart();
+      if (!cart.length) { alert('Giỏ trống!'); location.href = 'cart.html'; return; }
+      const u = getUser();
+      if (u) {
+        document.getElementById('guestName').value = u.name || '';
+        const rec = getUsers().find(x => x.id === u.id);
+        if (rec && rec.phone) document.getElementById('guestPhone').value = rec.phone;
+      }
+      let total = 0;
+      document.getElementById('orderItems').innerHTML = cart.map(i => {
+        const sub = i.price * i.nights;
+        total += sub;
+        return `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.95rem;">
+          <span>${esc(i.name)} · ${esc(i.nights)} đêm</span><strong>${formatPrice(sub)}</strong></div>`;
+      }).join('');
+      document.getElementById('sumTotal').textContent = formatPrice(total);
+    });
+    function placeOrder() {
+      if (placing) return;
+      const name = document.getElementById('guestName').value.trim();
+      const phone = document.getElementById('guestPhone').value.trim();
+      if (!name || !phone) { alert('Vui lòng điền họ tên và số điện thoại!'); return; }
+      if (!isValidPhone(phone)) { alert('Số điện thoại không hợp lệ!'); return; }
+      const cart = getCart();
+      if (!cart.length) { alert('Giỏ trống!'); location.href = 'cart.html'; return; }
+      // Kiểm tra lại phòng còn trống tại thời điểm đặt
+      const rooms = getRooms();
+      for (const i of cart) {
+        const room = rooms.find(r => r.id === i.id);
+        if (i.checkin < todayStr() || !isRoomAvailable(room, i.checkin, i.checkout)) {
+          alert('Phòng "' + i.name + '" không còn trống trong thời gian đã chọn. Vui lòng xóa khỏi giỏ và chọn lại!');
+          location.href = 'cart.html';
+          return;
+        }
+      }
+      placing = true;
+      const total = cart.reduce((s, i) => s + i.price * i.nights, 0);
+      const code = genOrderCode();
+      const orders = getOrders();
+      orders.unshift({
+        code, items: cart, total, name, phone,
+        note: document.getElementById('note').value.trim(),
+        payment: payMethod,
+        paymentStatus: 'unpaid', // nhân viên xác nhận thanh toán sau khi nhận tiền
+        status: 'pending',
+        date: new Date().toLocaleDateString('vi-VN'),
+        userId: getUser().id
+      });
+      saveOrders(orders);
+      localStorage.removeItem('cart');
+      alert('Đặt phòng thành công!\nMã đơn: ' + code + '\nTrạng thái: Chờ xác nhận');
+      location.href = 'orders.html';
+    }
+  </script>
+</body>
+</html>

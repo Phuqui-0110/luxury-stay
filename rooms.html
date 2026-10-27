@@ -3,123 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quản lý phòng | Admin</title>
+  <title>Danh sách phòng | Luxury Stay</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="../css/style.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8F%A8%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-  <div class="admin-overlay" id="adminOverlay" onclick="closeAdminSidebar()"></div>
-  <div class="admin-wrapper">
-    <aside class="admin-sidebar">
-      <div class="brand"><h4><i class="bi bi-building"></i> LUXURY STAY</h4><small style="color:rgba(255,255,255,0.5);">Admin Panel</small></div>
-      <nav style="margin-top:12px;">
-        <a href="dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a>
-        <a href="bookings.html"><i class="bi bi-calendar-check"></i> Quản lý đơn hàng</a>
-        <a href="rooms.html" class="active"><i class="bi bi-door-open"></i> Quản lý phòng</a>
-        <a href="users.html"><i class="bi bi-people"></i> Quản lý tài khoản</a>
-        <a href="categories.html"><i class="bi bi-tags"></i> Quản lý danh mục</a>
-        <hr style="border-color:rgba(255,255,255,0.1);margin:12px 16px;">
-        <a href="../index.html"><i class="bi bi-box-arrow-left"></i> Về trang chủ</a>
-        <a href="#" onclick="logout();return false;"><i class="bi bi-box-arrow-right"></i> Đăng xuất</a>
-      </nav>
-    </aside>
-    <div class="admin-content">
-      <div class="admin-topbar">
-        <button class="admin-toggle" onclick="toggleAdminSidebar()" aria-label="Menu"><i class="bi bi-list"></i></button>
-        <h5 style="margin:0;font-weight:700;">Quản lý phòng (Sản phẩm)</h5>
-        <button class="btn btn-primary btn-sm" onclick="addRoom()"><i class="bi bi-plus"></i> Thêm phòng</button>
-      </div>
-      <div class="admin-main">
-        <div class="table-card">
-          <table>
-            <thead><tr><th>ID</th><th>Tên phòng</th><th>Loại</th><th>Sức chứa</th><th>Giá/đêm</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-            <tbody id="body"></tbody>
-          </table>
-        </div>
-      </div>
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="navbar-brand"><i class="bi bi-building"></i> LUXURY STAY</a>
+      <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu"><i class="bi bi-list"></i></button>
+      <ul class="navbar-nav">
+        <li><a href="index.html">Trang chủ</a></li>
+        <li><a href="rooms.html" class="active">Phòng</a></li>
+        <li><a href="cart.html">Giỏ đặt <span class="cart-badge">0</span></a></li>
+        <li><a href="orders.html">Đơn của tôi</a></li>
+        <li id="navAdmin" style="display:none;"><a href="admin/dashboard.html">Admin</a></li>
+        <li id="navLogin"><a href="login.html" class="btn-gold"><i class="bi bi-person"></i> Đăng nhập</a></li>
+        <li id="navUser" style="display:none;"></li>
+      </ul>
     </div>
-  </div>
-  <script src="../js/main.js"></script>
+  </nav>
+
+  <section class="section">
+    <div class="section-title"><h2>Danh sách phòng</h2></div>
+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+      <select id="filterType" onchange="filterRooms()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;">
+        <option value="">Tất cả loại</option>
+        <option>Standard</option><option>Deluxe</option><option>Suite</option>
+        <option>Presidential</option><option>Family</option><option>Ocean View</option>
+      </select>
+      <select id="filterCap" onchange="filterRooms()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;">
+        <option value="">Số khách</option>
+        <option value="1">1+</option><option value="2">2+</option><option value="4">4+</option><option value="5">5+</option>
+      </select>
+    </div>
+    <div class="room-grid" id="roomGrid"></div>
+  </section>
+
+  <footer class="footer"><div class="footer-bottom">&copy; 2026 Luxury Stay</div></footer>
+  <script src="js/main.js"></script>
   <script>
-    if (!requireAuth(['staff','admin'])) throw new Error('Không có quyền');
-    function roomFields() {
-      return [
-        { name: 'name', label: 'Tên phòng', required: true },
-        { name: 'number', label: 'Số phòng', required: true },
-        { name: 'type', label: 'Loại phòng (danh mục)', type: 'select', options: getCategories().map(c => ({ value: c.name, label: c.name })) },
-        { name: 'floor', label: 'Tầng', type: 'number', min: 1, required: true },
-        { name: 'capacity', label: 'Sức chứa (người)', type: 'number', min: 1, required: true },
-        { name: 'price', label: 'Giá / đêm (VNĐ)', type: 'number', min: 1, required: true },
-        { name: 'area', label: 'Diện tích (m²)', type: 'number', min: 1, required: true },
-        { name: 'image', label: 'Link ảnh (URL)' },
-        { name: 'amenities', label: 'Tiện nghi (cách nhau bằng dấu phẩy)' },
-        { name: 'desc', label: 'Mô tả', type: 'textarea' },
-        { name: 'status', label: 'Trạng thái', type: 'select', options: Object.keys(ROOM_STATUS).map(k => ({ value: k, label: ROOM_STATUS[k] })) }
-      ];
+    if (!requireAuth(['customer','staff','admin'])) throw new Error('Chưa đăng nhập');
+    function filterRooms() {
+      const t = document.getElementById('filterType').value;
+      const c = parseInt(document.getElementById('filterCap').value, 10) || 0;
+      let list = getRooms();
+      if (t) list = list.filter(r => r.type === t);
+      if (c) list = list.filter(r => r.capacity >= c);
+      renderRooms(list, 'roomGrid');
     }
-    function validate(d, rooms, selfId) {
-      if (!d.name || !d.number) return 'Vui lòng nhập tên phòng và số phòng!';
-      if (!(d.price > 0) || !(d.capacity > 0) || !(d.area > 0) || !(d.floor > 0)) return 'Giá, sức chứa, diện tích và tầng phải lớn hơn 0!';
-      if (rooms.some(r => r.id !== selfId && String(r.number).toLowerCase() === d.number.toLowerCase())) return 'Số phòng này đã tồn tại!';
-      return null;
-    }
-    function addRoom() {
-      if (!getCategories().length) { alert('Hãy tạo danh mục phòng trước!'); return; }
-      openForm('Thêm phòng', roomFields(), { floor: 1, capacity: 2, area: 25, status: 'available', image: '' }, d => {
-        const rooms = getRooms();
-        const err = validate(d, rooms, null);
-        if (err) return err;
-        rooms.push({ ...d, id: nextId(rooms), image: d.image || FALLBACK_IMG });
-        saveRooms(rooms); render(); toast('Đã thêm phòng');
-      });
-    }
-    function editRoom(id) {
-      const rooms = getRooms();
-      const r = rooms.find(x => x.id === id);
-      if (!r) return;
-      openForm('Sửa phòng #' + r.id, roomFields(), r, d => {
-        const err = validate(d, rooms, id);
-        if (err) return err;
-        saveRooms(rooms.map(x => x.id === id ? { ...x, ...d, image: d.image || x.image } : x));
-        render(); toast('Đã cập nhật phòng');
-      });
-    }
-    function setRoomStatus(id, val) {
-      saveRooms(getRooms().map(r => r.id === id ? { ...r, status: val } : r));
-      toast('Đã cập nhật trạng thái phòng #' + id);
-    }
-    function delRoom(id) {
-      const r = getRooms().find(x => x.id === id);
-      if (!r) return;
-      const used = getOrders().some(o => ACTIVE_STATUS.includes(o.status) && o.items.some(i => i.id === id));
-      if (used) { alert('Phòng đang có đơn đặt chưa hoàn tất, không thể xóa!'); return; }
-      if (!confirm('Xóa ' + roomTitle(r) + '?')) return;
-      saveRooms(getRooms().filter(x => x.id !== id));
-      render(); toast('Đã xóa phòng');
-    }
-    function render() {
-      document.getElementById('body').innerHTML = getRooms().map(r => `
-        <tr>
-          <td><strong>#${r.id}</strong></td>
-          <td>${esc(roomTitle(r))}</td>
-          <td>${esc(r.type)}</td>
-          <td>${esc(r.capacity)} người</td>
-          <td>${formatPrice(r.price)}</td>
-          <td>
-            <select style="padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:13px;" onchange="setRoomStatus(${r.id}, this.value)">
-              ${Object.keys(ROOM_STATUS).map(k => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${ROOM_STATUS[k]}</option>`).join('')}
-            </select>
-          </td>
-          <td>
-            <button class="btn btn-outline btn-sm" onclick="editRoom(${r.id})" aria-label="Sửa"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-danger btn-sm" onclick="delRoom(${r.id})" aria-label="Xóa"><i class="bi bi-trash"></i></button>
-          </td>
-        </tr>
-      `).join('') || '<tr><td colspan="7" style="text-align:center;color:#999;padding:30px;">Chưa có phòng</td></tr>';
-    }
-    document.addEventListener('DOMContentLoaded', render);
+    document.addEventListener('DOMContentLoaded', () => {
+      fillTypeSelect('filterType', 'Tất cả loại');
+      renderRooms(getRooms(), 'roomGrid');
+    });
   </script>
 </body>
 </html>
